@@ -2,7 +2,7 @@
 
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt  # ✅ Needed for pie chart
+#import matplotlib.pyplot as plt  # ✅ Needed for pie chart
 import requests
 from datetime import datetime
 
