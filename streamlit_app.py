@@ -44,7 +44,7 @@ if not data.empty:
     # Expense Pie Chart
     st.subheader("🎈 Expense Pie Chart by Category")
     pie_data = expenses.groupby("Category")["Amount"].sum()
-    fig1, ax1 = plt.subplots()
+    #fig1, ax1 = plt.subplots()
     ax1.pie(pie_data, labels=pie_data.index, autopct='%1.1f%%', startangle=90)
     ax1.axis('equal')
     st.pyplot(fig1)
