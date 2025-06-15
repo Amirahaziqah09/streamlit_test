@@ -1,73 +1,119 @@
-# personal_finance_tracker/app.py
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
-from datetime import datetime
 import requests
+import datetime
+import matplotlib.pyplot as plt
+import altair as alt
 
-st.set_page_config(page_title="Simple Finance App", layout="centered")
+# --- Constants ---
+BASE_CURRENCY = "MYR"
+API_KEY = "YOUR_API_KEY"  # Replace with your actual API key
+API_URL = f"https://api.apilayer.com/exchangerates_data/latest?base={BASE_CURRENCY}"
 
-st.title("🧾 Simple Daily Finance Logger")
-
-# Load existing data
+# --- Load or Create Data ---
 @st.cache_data
 def load_data():
     try:
-        return pd.read_csv("finance_data.csv")
+        return pd.read_csv("data/finance_data.csv", parse_dates=["Date"])
     except FileNotFoundError:
-        return pd.DataFrame(columns=["Date", "Type", "Category", "Amount"])
+        return pd.DataFrame(columns=["Date", "Type", "Amount", "Currency", "Category", "Description", "Converted"])
 
+
+def save_data(df):
+    df.to_csv("data/finance_data.csv", index=False)
+
+
+# --- Fetch Exchange Rates ---
+@st.cache_data(ttl=3600)
+def get_exchange_rates():
+    headers = {"apikey": API_KEY}
+    try:
+        response = requests.get(API_URL, headers=headers)
+        if response.status_code == 200:
+            return response.json()["rates"]
+        else:
+            st.warning("Currency API error: Using default rate of 1.0")
+            return {}
+    except:
+        st.error("Failed to fetch exchange rates")
+        return {}
+
+
+# --- Convert Amount ---
+def convert_to_base(amount, currency, rates):
+    if currency == BASE_CURRENCY or not rates:
+        return amount
+    try:
+        rate = rates[currency]
+        return round(amount / rate, 2)
+    except:
+        return amount
+
+
+# --- Main App ---
+st.set_page_config(page_title="Personal Finance Tracker", layout="centered")
+st.title("💰 Personal Finance Tracker")
+
+# Load data
+rates = get_exchange_rates()
 data = load_data()
 
-# Add new transaction
-st.header("➕ Add New Transaction")
-with st.form("new_transaction"):
-    date = st.date_input("Date", value=datetime.today())
-    trans_type = st.radio("Transaction Type", ["Income", "Expense"], horizontal=True)
-    category = st.text_input("Category", placeholder="e.g. Salary, Food, Transport")
-    amount = st.number_input("Amount (MYR)", min_value=0.0, step=0.01, format="%.2f")
-    add = st.form_submit_button("Add Transaction")
+# --- Input Form ---
+st.subheader("Add Transaction")
+with st.form("entry_form"):
+    col1, col2 = st.columns(2)
+    date = col1.date_input("Date", datetime.date.today())
+    trans_type = col2.selectbox("Type", ["Income", "Expense"])
 
-if add:
-    new_row = pd.DataFrame({"Date": [date], "Type": [trans_type], "Category": [category], "Amount": [amount]})
-    data = pd.concat([data, new_row], ignore_index=True)
-    data.to_csv("finance_data.csv", index=False)
-    st.success("Transaction added!")
+    amount = st.number_input("Amount", min_value=0.01, step=0.01)
+    currency = st.selectbox("Currency", [BASE_CURRENCY] + sorted(rates.keys()))
 
-# Show transaction history
-st.header("📋 Transaction History")
+    category = st.selectbox("Category", ["Food", "Transport", "Salary", "Shopping", "Utilities", "Other"])
+    description = st.text_input("Description")
+
+    submitted = st.form_submit_button("Add Transaction")
+    if submitted:
+        converted = convert_to_base(amount, currency, rates)
+        new_entry = pd.DataFrame({
+            "Date": [date],
+            "Type": [trans_type],
+            "Amount": [amount],
+            "Currency": [currency],
+            "Category": [category],
+            "Description": [description],
+            "Converted": [converted if trans_type == "Expense" else -converted]
+        })
+        data = pd.concat([data, new_entry], ignore_index=True)
+        save_data(data)
+        st.success("Transaction added successfully!")
+
+# --- Visualizations ---
+st.subheader("📊 Financial Overview")
+
 if not data.empty:
-    st.dataframe(data.sort_values(by="Date", ascending=False), use_container_width=True)
-else:
-    st.info("No transactions recorded yet.")
-
-# Show summary charts
-if not data.empty:
-    st.header("📊 Summary Charts")
     data["Date"] = pd.to_datetime(data["Date"])
-    summary = data.groupby(["Date", "Type"])["Amount"].sum().unstack().fillna(0)
-    summary["Net"] = summary.get("Income", 0) - summary.get("Expense", 0)
-    summary["Balance"] = summary["Net"].cumsum()
 
-    st.subheader("💹 Daily Net Balance")
-    st.line_chart(summary["Balance"])
+    # Total balance
+    balance = data["Converted"].sum()
+    st.metric("Current Balance (MYR)", f"RM {balance:.2f}")
 
-    st.subheader("🧮 Income vs Expenses")
-    total_income = data[data["Type"] == "Income"]["Amount"].sum()
-    total_expense = data[data["Type"] == "Expense"]["Amount"].sum()
-    fig, ax = plt.subplots()
-    ax.bar(["Income", "Expense"], [total_income, total_expense], color=["green", "red"])
-    ax.set_ylabel("Amount (MYR)")
-    st.pyplot(fig)
+    # Bar chart by category
+    st.write("### Expenses by Category")
+    expenses = data[data["Type"] == "Expense"]
+    category_totals = expenses.groupby("Category")["Converted"].sum().reset_index()
+    st.bar_chart(category_totals.set_index("Category"))
 
-# Show exchange rates
-st.header("🌍 Live Exchange Rates (MYR)")
-try:
-    response = requests.get("https://api.exchangerate-api.com/v4/latest/MYR")
-    rates = response.json()["rates"]
-    selected = st.multiselect("Select currencies to view: ", ["USD", "EUR", "GBP", "SGD", "JPY"])
-    if selected:
-        for currency in selected:
-            st.write(f"1 MYR = {rates[currency]:.4f} {currency}")
-except:
-    st.error("Unable to fetch exchange rates. Please check your internet connection or API status.")
+    # Line chart by month
+    st.write("### Monthly Savings Trend")
+    data["Month"] = data["Date"].dt.to_period("M").astype(str)
+    monthly = data.groupby("Month")["Converted"].sum().cumsum().reset_index()
+    line_chart = alt.Chart(monthly).mark_line(point=True).encode(
+        x="Month", y="Converted"
+    ).properties(width=600)
+    st.altair_chart(line_chart)
+
+    # Transaction Table
+    st.write("### All Transactions")
+    st.dataframe(data.sort_values("Date", ascending=False))
+else:
+    st.info("No data available. Please add transactions.")
