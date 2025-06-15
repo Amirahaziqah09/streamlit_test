@@ -97,20 +97,39 @@ except:
 # -----------------------------
 st.subheader("💱 Currency Exchange")
 
-currency = st.selectbox("Select currency to convert from MYR:", ["USD", "EUR", "SGD", "GBP", "JPY"])
+# Currency options
+currency = st.selectbox(
+    "Select currency to convert from MYR:",
+    ["USD", "EUR", "SGD", "GBP", "JPY"]
+)
+
+# Input amount in MYR
 amount_to_convert = st.number_input("Amount in MYR:", min_value=0.0, format="%.2f", key="convert_amount")
 
+# Convert button
 if st.button("Convert"):
-    try:
-        url = f"https://api.exchangerate.host/latest?base=MYR&symbols={currency}"
-        response = requests.get(url)
-        data = response.json()
-        rate = data["rates"][currency]
-        converted = amount_to_convert * rate
-        st.success(f"1 MYR = {rate:.4f} {currency}")
-        st.info(f"RM {amount_to_convert:.2f} ≈ {converted:.2f} {currency}")
-    except:
-        st.error("Failed to fetch exchange rate. Please try again later.")
+    with st.spinner("Fetching latest exchange rate..."):
+        try:
+            # API request
+            url = f"https://api.exchangerate.host/latest?base=MYR&symbols={currency}"
+            response = requests.get(url)
+            response.raise_for_status()  # raises HTTPError for bad status
+
+            data = response.json()
+            rate = data["rates"].get(currency)
+
+            if rate:
+                converted = amount_to_convert * rate
+                date = data.get("date", "N/A")
+                st.success(f"✅ 1 MYR = {rate:.4f} {currency} (as of {date})")
+                st.info(f"💰 RM {amount_to_convert:.2f} ≈ {converted:.2f} {currency}")
+            else:
+                st.warning("Exchange rate data is unavailable for this currency.")
+        except requests.exceptions.RequestException as e:
+            st.error(f"API request failed: {e}")
+        except Exception as e:
+            st.error(f"An unexpected error occurred: {e}")
+    #added up until here
 
 # -----------------------------
 # Download CSV
