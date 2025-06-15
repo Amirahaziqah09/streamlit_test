@@ -97,7 +97,6 @@ except:
 # -----------------------------
 st.subheader("💱 Currency Exchange")
 
-# Currency selection
 currency = st.selectbox(
     "Select currency to convert from MYR:",
     ["USD", "EUR", "SGD", "GBP", "JPY"]
@@ -108,28 +107,24 @@ amount_to_convert = st.number_input("Amount in MYR:", min_value=0.0, format="%.2
 if st.button("Convert"):
     with st.spinner("Fetching exchange rate..."):
         try:
-            # ✅ Use correct and free API
-            url = f"https://api.exchangerate.host/latest?base=MYR&symbols={currency}"
+            url = f"https://api.exchangerate.host/convert?from=MYR&to={currency}&amount={amount_to_convert}"
             response = requests.get(url)
             response.raise_for_status()
-
             data = response.json()
 
-            if "rates" in data and currency in data["rates"]:
-                rate = data["rates"][currency]
-                converted = amount_to_convert * rate
-                date = data.get("date", "N/A")
-                st.success(f"✅ 1 MYR = {rate:.4f} {currency} (as of {date})")
+            if data["success"]:
+                rate = data["info"]["rate"]
+                converted = data["result"]
+                st.success(f"✅ 1 MYR = {rate:.4f} {currency}")
                 st.info(f"💰 RM {amount_to_convert:.2f} ≈ {converted:.2f} {currency}")
             else:
-                st.error("Exchange rate data not found.")
-                st.json(data)  # Show raw response for debugging
+                st.error("❌ Failed to retrieve exchange rate.")
+                st.json(data)  # Debug: show full response
 
         except requests.exceptions.RequestException as e:
             st.error(f"Network error: {e}")
         except Exception as e:
-            st.error(f"Unexpected error: {e}")
-    #added up until here
+            st.error(f"Unexpected error: {e}") #added up until here
 
 # -----------------------------
 # Download CSV
