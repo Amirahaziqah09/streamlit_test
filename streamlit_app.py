@@ -1,30 +1,72 @@
+# personal_finance_tracker/app.py
 import streamlit as st
+import pandas as pd
+import matplotlib.pyplot as plt
 import requests
+from datetime import datetime
 
-# Set the app title 
-st.title('Hai Hai !! 💱') 
+# Title
+st.title("💸 Personal Finance Tracker")
+st.write("Track your daily income and expenses.")
 
-# Add a welcome message 
-st.write('Welcome to my Streamlit app!') 
+# Load or initialize data
+def load_data():
+    try:
+        return pd.read_csv("data.csv")
+    except:
+        return pd.DataFrame(columns=["Date", "Category", "Type", "Amount"])
 
-# Create a text input 
-widgetuser_input = st.text_input('Enter a custom message:', 'Hello, Streamlit!') 
+data = load_data()
 
-# Display the customized message 
-st.write('Customized Message:', widgetuser_input)
+# Input Form
+with st.form("Add Transaction"):
+    date = st.date_input("Date", datetime.now())
+    category = st.selectbox("Category", ["Food", "Transport", "Salary", "Others"])
+    trans_type = st.radio("Type", ["Income", "Expense"])
+    amount = st.number_input("Amount (MYR)", min_value=0.0, format="%.2f")
+    submitted = st.form_submit_button("Save")
 
-# Currency options for dropdown
-currency_options = ['USD', 'EUR', 'GBP', 'JPY', 'AUD', 'CAD', 'CHF', 'CNY', 'INR', 'SGD']
+if submitted:
+    new_data = pd.DataFrame({"Date": [date], "Category": [category], "Type": [trans_type], "Amount": [amount]})
+    data = pd.concat([data, new_data], ignore_index=True)
+    data.to_csv("data.csv", index=False)
+    st.success("Transaction saved successfully!")
 
-# Create a dropdown to select base currency
-base_currency = st.selectbox('Choose a base currency:', currency_options)
+# Display Data
+st.subheader("📊 Transaction Summary")
+st.dataframe(data.sort_values(by="Date", ascending=False))
 
-# API call with selected currency
-response = requests.get(f'https://api.vatcomply.com/rates?base={base_currency}')
+# Visualization
+if not data.empty:
+    expenses = data[data["Type"] == "Expense"]
+    income = data[data["Type"] == "Income"]
 
-if response.status_code == 200:
-    data = response.json()
-    st.write(f'Exchange rates for {base_currency}:')
-    st.json(data)
-else:
-    st.error(f"API call failed with status code: {response.status_code}")
+    # Expense Pie Chart
+    st.subheader("🎈 Expense Pie Chart by Category")
+    pie_data = expenses.groupby("Category")["Amount"].sum()
+    fig1, ax1 = plt.subplots()
+    ax1.pie(pie_data, labels=pie_data.index, autopct='%1.1f%%', startangle=90)
+    ax1.axis('equal')
+    st.pyplot(fig1)
+
+    # Line chart for daily balance
+    st.subheader("Daily Balance")
+    data["Date"] = pd.to_datetime(data["Date"])
+    grouped = data.groupby(["Date", "Type"])["Amount"].sum().unstack().fillna(0)
+    grouped["Balance"] = grouped.get("Income", 0) - grouped.get("Expense", 0)
+    grouped["Cumulative Balance"] = grouped["Balance"].cumsum()
+
+    st.line_chart(grouped["Cumulative Balance"])
+
+# Currency Conversion
+st.subheader("🌐 Currency Conversion (API)")
+try:
+    resp = requests.get("https://api.exchangerate-api.com/v4/latest/MYR")
+    rates = resp.json()["rates"]
+    currency_choice = st.selectbox("Convert to:", ["USD", "EUR", "SGD"])
+    myr_amount = st.number_input("Amount in MYR:", min_value=0.0, format="%.2f")
+    if st.button("Convert"):
+        converted = myr_amount * rates[currency_choice]
+        st.success(f"RM{myr_amount:.2f} = {converted:.2f} {currency_choice}")
+except:
+    st.error("Failed to access currency exchange API.")
