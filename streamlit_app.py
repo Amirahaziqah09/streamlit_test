@@ -2,60 +2,71 @@
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
+import requests
 from datetime import datetime
 
-st.set_page_config(page_title="Simple Finance App", layout="centered")
+# Title
+st.title("💸 Personal Finance Tracker")
+st.write("Track your daily income and expenses.")
 
-st.title("🧾 Simple Daily Finance Logger")
-
-# Load existing data
-@st.cache_data
+# Load or initialize data
 def load_data():
     try:
-        return pd.read_csv("finance_data.csv")
-    except FileNotFoundError:
-        return pd.DataFrame(columns=["Date", "Type", "Category", "Amount"])
+        return pd.read_csv("data.csv")
+    except:
+        return pd.DataFrame(columns=["Date", "Category", "Type", "Amount"])
 
 data = load_data()
 
-# Add new transaction
-st.header("➕ Add New Transaction")
-with st.form("new_transaction"):
-    date = st.date_input("Date", value=datetime.today())
-    trans_type = st.radio("Transaction Type", ["Income", "Expense"], horizontal=True)
-    category = st.text_input("Category", placeholder="e.g. Salary, Food, Transport")
-    amount = st.number_input("Amount (MYR)", min_value=0.0, step=0.01, format="%.2f")
-    add = st.form_submit_button("Add Transaction")
+# Input Form
+with st.form("Add Transaction"):
+    date = st.date_input("Date", datetime.now())
+    category = st.selectbox("Category", ["Food", "Transport", "Salary", "Others"])
+    trans_type = st.radio("Type", ["Income", "Expense"])
+    amount = st.number_input("Amount (MYR)", min_value=0.0, format="%.2f")
+    submitted = st.form_submit_button("Save")
 
-if add:
-    new_row = pd.DataFrame({"Date": [date], "Type": [trans_type], "Category": [category], "Amount": [amount]})
-    data = pd.concat([data, new_row], ignore_index=True)
-    data.to_csv("finance_data.csv", index=False)
-    st.success("Transaction added!")
+if submitted:
+    new_data = pd.DataFrame({"Date": [date], "Category": [category], "Type": [trans_type], "Amount": [amount]})
+    data = pd.concat([data, new_data], ignore_index=True)
+    data.to_csv("data.csv", index=False)
+    st.success("Transaction saved successfully!")
 
-# Show transaction history
-st.header("📋 Transaction History")
+# Display Data
+st.subheader("📊 Transaction Summary")
+st.dataframe(data.sort_values(by="Date", ascending=False))
+
+# Visualization
 if not data.empty:
-    st.dataframe(data.sort_values(by="Date", ascending=False), use_container_width=True)
-else:
-    st.info("No transactions recorded yet.")
+    expenses = data[data["Type"] == "Expense"]
+    income = data[data["Type"] == "Income"]
 
-# Show summary charts
-if not data.empty:
-    st.header("📊 Summary Charts")
+    # Expense Pie Chart
+    st.subheader("🎈 Expense Pie Chart by Category")
+    pie_data = expenses.groupby("Category")["Amount"].sum()
+    fig1, ax1 = plt.subplots()
+    ax1.pie(pie_data, labels=pie_data.index, autopct='%1.1f%%', startangle=90)
+    ax1.axis('equal')
+    st.pyplot(fig1)
+
+    # Line chart for daily balance
+    st.subheader("Daily Balance")
     data["Date"] = pd.to_datetime(data["Date"])
-    summary = data.groupby(["Date", "Type"])["Amount"].sum().unstack().fillna(0)
-    summary["Net"] = summary.get("Income", 0) - summary.get("Expense", 0)
-    summary["Balance"] = summary["Net"].cumsum()
+    grouped = data.groupby(["Date", "Type"])["Amount"].sum().unstack().fillna(0)
+    grouped["Balance"] = grouped.get("Income", 0) - grouped.get("Expense", 0)
+    grouped["Cumulative Balance"] = grouped["Balance"].cumsum()
 
-    st.subheader("💹 Daily Net Balance")
-    st.line_chart(summary["Balance"])
+    st.line_chart(grouped["Cumulative Balance"])
 
-    st.subheader("🧮 Income vs Expenses")
-    total_income = data[data["Type"] == "Income"]["Amount"].sum()
-    total_expense = data[data["Type"] == "Expense"]["Amount"].sum()
-    fig, ax = plt.subplots()
-    ax.bar(["Income", "Expense"], [total_income, total_expense], color=["green", "red"])
-    ax.set_ylabel("Amount (MYR)")
-    st.pyplot(fig)
-    
+# Currency Conversion
+st.subheader("🌐 Currency Conversion (API)")
+try:
+    resp = requests.get("https://api.exchangerate-api.com/v4/latest/MYR")
+    rates = resp.json()["rates"]
+    currency_choice = st.selectbox("Convert to:", ["USD", "EUR", "SGD"])
+    myr_amount = st.number_input("Amount in MYR:", min_value=0.0, format="%.2f")
+    if st.button("Convert"):
+        converted = myr_amount * rates[currency_choice]
+        st.success(f"RM{myr_amount:.2f} = {converted:.2f} {currency_choice}")
+except:
+    st.error("Failed to access currency exchange API.")
