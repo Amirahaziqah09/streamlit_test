@@ -94,8 +94,7 @@ except:
 
 # -----------------------------
 # Currency Exchange Converter
-# -----------------------------
-st.subheader("💱 Currency Exchange")
+# -----------------------------st.subheader("💱 Currency Exchange")
 
 # Currency options
 currency = st.selectbox(
@@ -103,32 +102,33 @@ currency = st.selectbox(
     ["USD", "EUR", "SGD", "GBP", "JPY"]
 )
 
-# Input amount in MYR
+# Input amount
 amount_to_convert = st.number_input("Amount in MYR:", min_value=0.0, format="%.2f", key="convert_amount")
 
-# Convert button
+# Convert action
 if st.button("Convert"):
-    with st.spinner("Fetching latest exchange rate..."):
+    with st.spinner("Fetching exchange rate..."):
         try:
-            # API request
             url = f"https://api.exchangerate.host/latest?base=MYR&symbols={currency}"
             response = requests.get(url)
-            response.raise_for_status()  # raises HTTPError for bad status
-
+            response.raise_for_status()
             data = response.json()
-            rate = data["rates"].get(currency)
 
-            if rate:
+            # Check if 'rates' exists
+            if "rates" in data and currency in data["rates"]:
+                rate = data["rates"][currency]
                 converted = amount_to_convert * rate
                 date = data.get("date", "N/A")
                 st.success(f"✅ 1 MYR = {rate:.4f} {currency} (as of {date})")
                 st.info(f"💰 RM {amount_to_convert:.2f} ≈ {converted:.2f} {currency}")
             else:
-                st.warning("Exchange rate data is unavailable for this currency.")
+                st.error("Exchange rate data not found in API response.")
+                st.json(data)  # Show full response for debugging
+
         except requests.exceptions.RequestException as e:
-            st.error(f"API request failed: {e}")
+            st.error(f"Connection error: {e}")
         except Exception as e:
-            st.error(f"An unexpected error occurred: {e}")
+            st.error(f"Unexpected error: {e}")
     #added up until here
 
 # -----------------------------
