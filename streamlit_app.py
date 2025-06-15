@@ -1,131 +1,73 @@
+# personal_finance_tracker/app.py
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
-import datetime
+from datetime import datetime
 import requests
 
-# -----------------------------
-# Page Configuration
-# -----------------------------
-st.set_page_config(page_title="Personal Finance Tracker", layout="centered")
-st.title("📊 Personal Finance Tracker")
-st.markdown("Track your income & expenses, view charts, convert currencies, and get financial tips!")
+st.set_page_config(page_title="Simple Finance App", layout="centered")
 
-# -----------------------------
-# Session State Initialization
-# -----------------------------
-if "data" not in st.session_state:
-    st.session_state.data = pd.DataFrame(columns=["Date", "Category", "Type", "Amount"])
+st.title("🧾 Simple Daily Finance Logger")
 
-# -----------------------------
-# Add Transaction Form
-# -----------------------------
-with st.form("transaction_form", clear_on_submit=True):
-    st.subheader("➕ Add a Transaction")
-    col1, col2 = st.columns(2)
+# Load existing data
+@st.cache_data
+def load_data():
+    try:
+        return pd.read_csv("finance_data.csv")
+    except FileNotFoundError:
+        return pd.DataFrame(columns=["Date", "Type", "Category", "Amount"])
 
-    with col1:
-        date = st.date_input("Date", value=datetime.date.today())
-        amount = st.number_input("Amount (MYR)", min_value=0.01, format="%.2f")
+data = load_data()
 
-    with col2:
-        category = st.text_input("Category (e.g., Food, Salary)")
-        trans_type = st.selectbox("Type", ["Income", "Expense"])
+# Add new transaction
+st.header("➕ Add New Transaction")
+with st.form("new_transaction"):
+    date = st.date_input("Date", value=datetime.today())
+    trans_type = st.radio("Transaction Type", ["Income", "Expense"], horizontal=True)
+    category = st.text_input("Category", placeholder="e.g. Salary, Food, Transport")
+    amount = st.number_input("Amount (MYR)", min_value=0.0, step=0.01, format="%.2f")
+    add = st.form_submit_button("Add Transaction")
 
-    submitted = st.form_submit_button("Add Transaction")
+if add:
+    new_row = pd.DataFrame({"Date": [date], "Type": [trans_type], "Category": [category], "Amount": [amount]})
+    data = pd.concat([data, new_row], ignore_index=True)
+    data.to_csv("finance_data.csv", index=False)
+    st.success("Transaction added!")
 
-    if submitted:
-        if not category:
-            st.warning("Please enter a category.")
-        else:
-            new_data = pd.DataFrame([[date, category, trans_type, amount]],
-                                    columns=["Date", "Category", "Type", "Amount"])
-            st.session_state.data = pd.concat([st.session_state.data, new_data], ignore_index=True)
-            st.success("Transaction added successfully!")
+# Show transaction history
+st.header("📋 Transaction History")
+if not data.empty:
+    st.dataframe(data.sort_values(by="Date", ascending=False), use_container_width=True)
+else:
+    st.info("No transactions recorded yet.")
 
-# -----------------------------
-# Display Transaction History
-# -----------------------------
-if not st.session_state.data.empty:
-    df = st.session_state.data
-    df["Date"] = pd.to_datetime(df["Date"])
-    st.subheader("📋 Transaction History")
-    st.dataframe(df.sort_values(by="Date", ascending=False), use_container_width=True)
+# Show summary charts
+if not data.empty:
+    st.header("📊 Summary Charts")
+    data["Date"] = pd.to_datetime(data["Date"])
+    summary = data.groupby(["Date", "Type"])["Amount"].sum().unstack().fillna(0)
+    summary["Net"] = summary.get("Income", 0) - summary.get("Expense", 0)
+    summary["Balance"] = summary["Net"].cumsum()
 
-    # Summary Metrics
-    total_income = df[df["Type"] == "Income"]["Amount"].sum()
-    total_expense = df[df["Type"] == "Expense"]["Amount"].sum()
-    balance = total_income - total_expense
+    st.subheader("💹 Daily Net Balance")
+    st.line_chart(summary["Balance"])
 
-    st.metric("💵 Total Income", f"RM {total_income:,.2f}")
-    st.metric("💸 Total Expenses", f"RM {total_expense:,.2f}")
-    st.metric("🧮 Balance", f"RM {balance:,.2f}")
+    st.subheader("🧮 Income vs Expenses")
+    total_income = data[data["Type"] == "Income"]["Amount"].sum()
+    total_expense = data[data["Type"] == "Expense"]["Amount"].sum()
+    fig, ax = plt.subplots()
+    ax.bar(["Income", "Expense"], [total_income, total_expense], color=["green", "red"])
+    ax.set_ylabel("Amount (MYR)")
+    st.pyplot(fig)
 
-    # -----------------------------
-    # Pie Chart: Income vs Expense
-    # -----------------------------
-    st.subheader("📊 Spending Breakdown")
-    pie_data = df.groupby("Type")["Amount"].sum()
-    fig1, ax1 = plt.subplots()
-    ax1.pie(pie_data, labels=pie_data.index, autopct="%1.1f%%", startangle=90)
-    ax1.axis("equal")
-    st.pyplot(fig1)
-
-    # -----------------------------
-    # Line Chart: Expenses Over Time
-    # -----------------------------
-    st.subheader("📈 Expenses Over Time")
-    expense_df = df[df["Type"] == "Expense"]
-    if not expense_df.empty:
-        line_data = expense_df.groupby("Date")["Amount"].sum().reset_index()
-        st.line_chart(line_data.rename(columns={"Amount": "Expenses"}), x="Date", y="Expenses")
-    else:
-        st.info("No expense data to display.")
-
-# -----------------------------
-# Financial Advice API
-# -----------------------------
-st.subheader("💡 Financial Tip of the Day")
+# Show exchange rates
+st.header("🌍 Live Exchange Rates (MYR)")
 try:
-    advice = requests.get("https://api.adviceslip.com/advice").json()
-    st.info(f"💬 {advice['slip']['advice']}")
+    response = requests.get("https://api.exchangerate-api.com/v4/latest/MYR")
+    rates = response.json()["rates"]
+    selected = st.multiselect("Select currencies to view: ", ["USD", "EUR", "GBP", "SGD", "JPY"])
+    if selected:
+        for currency in selected:
+            st.write(f"1 MYR = {rates[currency]:.4f} {currency}")
 except:
-    st.warning("Could not fetch financial advice. Please check your connection.")
-
-# -----------------------------
-# Currency Exchange (Correct Version)
-# -----------------------------
-st.subheader("💱 Currency Exchange")
-
-currency = st.selectbox("Select currency to convert from MYR:", ["USD", "EUR", "SGD", "GBP", "JPY"])
-amount_to_convert = st.number_input("Amount in MYR:", min_value=0.0, format="%.2f", key="convert_amount")
-
-if st.button("Convert"):
-    with st.spinner("Fetching exchange rate..."):
-        try:
-            url = f"https://api.exchangerate.host/convert?from=MYR&to={currency}&amount={amount_to_convert}"
-            response = requests.get(url)
-            response.raise_for_status()
-            data = response.json()
-
-            if data.get("success", False):
-                rate = data["info"]["rate"]
-                converted = data["result"]
-                st.success(f"✅ 1 MYR = {rate:.4f} {currency}")
-                st.info(f"💰 RM {amount_to_convert:.2f} ≈ {converted:.2f} {currency}")
-            else:
-                st.error("❌ Failed to retrieve exchange rate.")
-                st.json(data)
-
-        except requests.exceptions.RequestException as e:
-            st.error(f"Network error: {e}")
-        except Exception as e:
-            st.error(f"Unexpected error: {e}")
-
-# -----------------------------
-# Download CSV
-# -----------------------------
-st.subheader("💾 Download Your Data")
-if st.button("Export CSV"):
-    st.download_button("Click to Download", st.session_state.data.to_csv(index=False),
-                       file_name="finance_data.csv", mime="text/csv")
+    st.error("Unable to fetch exchange rates. Please check your internet connection or API status.")
