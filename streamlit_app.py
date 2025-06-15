@@ -93,16 +93,12 @@ except:
     st.warning("Could not fetch financial advice. Please check your connection.")
 
 # -----------------------------
-# Currency Exchange Converter
+# Currency Exchange (Correct Version)
 # -----------------------------
 st.subheader("💱 Currency Exchange")
 
-currency = st.selectbox(
-    "Select currency to convert from MYR:",
-    ["USD", "EUR", "SGD", "GBP", "JPY"]
-)
-
-amount_to_convert = st.number_input("Amount in MYR:", min_value=0.0, format="%.2f")
+currency = st.selectbox("Select currency to convert from MYR:", ["USD", "EUR", "SGD", "GBP", "JPY"])
+amount_to_convert = st.number_input("Amount in MYR:", min_value=0.0, format="%.2f", key="convert_amount")
 
 if st.button("Convert"):
     with st.spinner("Fetching exchange rate..."):
@@ -112,19 +108,19 @@ if st.button("Convert"):
             response.raise_for_status()
             data = response.json()
 
-            if data["success"]:
+            if data.get("success", False):
                 rate = data["info"]["rate"]
                 converted = data["result"]
                 st.success(f"✅ 1 MYR = {rate:.4f} {currency}")
                 st.info(f"💰 RM {amount_to_convert:.2f} ≈ {converted:.2f} {currency}")
             else:
                 st.error("❌ Failed to retrieve exchange rate.")
-                st.json(data)  # Debug: show full response
+                st.json(data)
 
         except requests.exceptions.RequestException as e:
             st.error(f"Network error: {e}")
         except Exception as e:
-            st.error(f"Unexpected error: {e}") #added up until here
+            st.error(f"Unexpected error: {e}")
 
 # -----------------------------
 # Download CSV
