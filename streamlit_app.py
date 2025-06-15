@@ -1,7 +1,7 @@
 # personal_finance_tracker/app.py
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 import requests
 from datetime import datetime
 
