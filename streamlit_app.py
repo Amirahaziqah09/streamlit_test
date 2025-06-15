@@ -5,20 +5,20 @@ import datetime
 import requests
 
 # -----------------------------
-# Page title
+# Page Configuration
 # -----------------------------
 st.set_page_config(page_title="Personal Finance Tracker", layout="centered")
 st.title("📊 Personal Finance Tracker")
-st.markdown("Track your income & expenses, view charts, and get financial tips!")
+st.markdown("Track your income & expenses, view charts, convert currencies, and get financial tips!")
 
 # -----------------------------
-# Initialize session state
+# Session State Initialization
 # -----------------------------
 if "data" not in st.session_state:
     st.session_state.data = pd.DataFrame(columns=["Date", "Category", "Type", "Amount"])
 
 # -----------------------------
-# Add transaction form
+# Add Transaction Form
 # -----------------------------
 with st.form("transaction_form", clear_on_submit=True):
     st.subheader("➕ Add a Transaction")
@@ -44,7 +44,7 @@ with st.form("transaction_form", clear_on_submit=True):
             st.success("Transaction added successfully!")
 
 # -----------------------------
-# Display Data
+# Display Transaction History
 # -----------------------------
 if not st.session_state.data.empty:
     df = st.session_state.data
@@ -52,9 +52,7 @@ if not st.session_state.data.empty:
     st.subheader("📋 Transaction History")
     st.dataframe(df.sort_values(by="Date", ascending=False), use_container_width=True)
 
-    # -----------------------------
-    # Summary Stats
-    # -----------------------------
+    # Summary Metrics
     total_income = df[df["Type"] == "Income"]["Amount"].sum()
     total_expense = df[df["Type"] == "Expense"]["Amount"].sum()
     balance = total_income - total_expense
@@ -66,7 +64,7 @@ if not st.session_state.data.empty:
     # -----------------------------
     # Pie Chart: Income vs Expense
     # -----------------------------
-    st.subheader("📈 Spending Breakdown")
+    st.subheader("📊 Spending Breakdown")
     pie_data = df.groupby("Type")["Amount"].sum()
     fig1, ax1 = plt.subplots()
     ax1.pie(pie_data, labels=pie_data.index, autopct="%1.1f%%", startangle=90)
@@ -74,27 +72,50 @@ if not st.session_state.data.empty:
     st.pyplot(fig1)
 
     # -----------------------------
-    # Line Chart: Spending Over Time
+    # Line Chart: Expenses Over Time
     # -----------------------------
-    st.subheader("📅 Spending Over Time")
+    st.subheader("📈 Expenses Over Time")
     expense_df = df[df["Type"] == "Expense"]
-    line_data = expense_df.groupby("Date")["Amount"].sum().reset_index()
-    st.line_chart(line_data.rename(columns={"Amount": "Expenses"}), x="Date", y="Expenses")
+    if not expense_df.empty:
+        line_data = expense_df.groupby("Date")["Amount"].sum().reset_index()
+        st.line_chart(line_data.rename(columns={"Amount": "Expenses"}), x="Date", y="Expenses")
+    else:
+        st.info("No expense data to display.")
 
 # -----------------------------
-# Financial Tip (API Integration)
+# Financial Advice API
 # -----------------------------
 st.subheader("💡 Financial Tip of the Day")
-
 try:
     advice = requests.get("https://api.adviceslip.com/advice").json()
     st.info(f"💬 {advice['slip']['advice']}")
 except:
-    st.warning("Could not fetch tip. Check your internet connection.")
+    st.warning("Could not fetch financial advice. Please check your connection.")
 
 # -----------------------------
-# Save to CSV (optional)
+# Currency Exchange Converter
 # -----------------------------
-st.markdown("💾 Want to save your data?")
-if st.button("Download as CSV"):
-    st.download_button("Click to Download", st.session_state.data.to_csv(index=False), file_name="finance_data.csv", mime="text/csv")
+st.subheader("💱 Currency Exchange")
+
+currency = st.selectbox("Select currency to convert from MYR:", ["USD", "EUR", "SGD", "GBP", "JPY"])
+amount_to_convert = st.number_input("Amount in MYR:", min_value=0.0, format="%.2f", key="convert_amount")
+
+if st.button("Convert"):
+    try:
+        url = f"https://api.exchangerate.host/latest?base=MYR&symbols={currency}"
+        response = requests.get(url)
+        data = response.json()
+        rate = data["rates"][currency]
+        converted = amount_to_convert * rate
+        st.success(f"1 MYR = {rate:.4f} {currency}")
+        st.info(f"RM {amount_to_convert:.2f} ≈ {converted:.2f} {currency}")
+    except:
+        st.error("Failed to fetch exchange rate. Please try again later.")
+
+# -----------------------------
+# Download CSV
+# -----------------------------
+st.subheader("💾 Download Your Data")
+if st.button("Export CSV"):
+    st.download_button("Click to Download", st.session_state.data.to_csv(index=False),
+                       file_name="finance_data.csv", mime="text/csv")
