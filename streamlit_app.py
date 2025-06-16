@@ -1,60 +1,92 @@
 import streamlit as st
 import pandas as pd
-from datetime import date
+import requests
+import datetime
+import matplotlib.pyplot as plt
 
-# Store data in CSV file
-DATA_FILE = "finance_data.csv"
+# Title of Streamlit App
+st.title("Personal Finance Tracker")
 
-# Function to load or create data
-@st.cache_data
-def load_data():
+# File CSV to store data
+FILE = "finance_data.csv"
+
+# Loading data if CSV exists
+try:
+    df = pd.read_csv(FILE)
+except FileNotFoundError:
+    df = pd.DataFrame(columns=["Description", "Amount", "Type", "Date"])
+
+# Input for adding new entry
+st.sidebar.header("Add new entry")
+description = st.sidebar.text_input("Description")
+amount = st.sidebar.number_input("Amount", min_value=0.0)
+entry_type = st.sidebar.selectbox("Type", ["Income", "Expense"])
+entry_date = st.sidebar.date_input("Date", datetime.date.today())    
+
+if st.sidebar.button("Add entry"):
+    new = pd.DataFrame([{
+        "Description": description,
+        "Amount": amount,
+        "Type": entry_type,
+        "Date": entry_date
+    }])
+    df = pd.concat([df, new], ignore_index=True)
+    df.to_csv(FILE, index=False)
+    st.success("Entry successfully added!")
+
+# Display the data
+st.subheader("All Transactions")
+st.dataframe(df)
+
+# Summary
+st.subheader("Summary")
+total_income = df.loc[df.Type == "Income", "Amount"].sum()
+total_expense = df.loc[df.Type == "Expense", "Amount"].sum()
+net_saving = total_income - total_expense
+
+st.write(f"Total Income: RM{total_income:.2f}")
+st.write(f"Total Expenses: RM{total_expense:.2f}")
+st.write(f"Net Saving: RM{net_saving:.2f}")
+
+# Set Monthly Budget
+st.sidebar.number_input("Set Monthly Budget (RM)", min_value=0.0, key='budget')
+budget = st.session_state.budget
+
+st.write(f"Monthly Budget: RM{budget:.2f}")
+
+if total_expense > budget:
+    st.error("Alert: Expenses have exceeded your budget!")
+
+# Currency Conversion
+st.sidebar.header("Currency Conversion")
+currency = st.sidebar.text_input("Target Currency (e.g. USD)", "USD")
+
+if st.sidebar.button("Convert to " + currency):
     try:
-        return pd.read_csv(DATA_FILE, parse_dates=["Date"])
-    except:
-        return pd.DataFrame(columns=["Date", "Type", "Amount", "Category", "Note"])
+        response = requests.get(f"https://api.exchangerate.host/convert?from=MYR&to={currency}")
+        rate = response.json()["result"]
+        st.success(f"1 MYR = {rate} {currency}")
 
-# Function to save data
-def save_data(df):
-    df.to_csv(DATA_FILE, index=False)
+        st.write(f"Total Income in {currency}: {total_income * rate:.2f}")
+        st.write(f"Total Expenses in {currency}: {total_expense * rate:.2f}")
 
-# App title
-st.title("📒 Simple Personal Finance Tracker")
+    except Exception as e:
+        st.error("Currency conversion failed. Please try again later.")
+        st.error(e)
 
-# Load existing data
-data = load_data()
 
-# Input form
-st.header("Add Transaction")
-with st.form("transaction_form"):
-    date_input = st.date_input("Date", date.today())
-    trans_type = st.radio("Type", ["Income", "Expense"])
-    amount = st.number_input("Amount (RM)", min_value=0.01, step=0.01)
-    category = st.selectbox("Category", ["Salary", "Food", "Transport", "Other"])
-    note = st.text_input("Note")
-    submit = st.form_submit_button("Save")
+# Charts
+st.subheader("Visualization")
+if not df.empty:
+    pie_data = df.groupby("Type")["Amount"].sum()
+    st.pie(pie_data,labels=pie_data.index)
 
-    if submit:
-        new_data = pd.DataFrame({
-            "Date": [date_input],
-            "Type": [trans_type],
-            "Amount": [amount],
-            "Category": [category],
-            "Note": [note]
-        })
-        data = pd.concat([data, new_data], ignore_index=True)
-        save_data(data)
-        st.success("Transaction saved successfully!")
+    st.bar_chart(df.groupby("Type")["Amount"].sum())    
 
-# Display transactions
-st.header("Transaction List")
-if not data.empty:
-    st.dataframe(data.sort_values("Date", ascending=False))
-    total_income = data[data["Type"] == "Income"]["Amount"].sum()
-    total_expense = data[data["Type"] == "Expense"]["Amount"].sum()
-    balance = total_income - total_expense
-
-    st.metric("Total Income", f"RM {total_income:.2f}")
-    st.metric("Total Expenses", f"RM {total_expense:.2f}")
-    st.metric("Balance", f"RM {balance:.2f}")
-else:
-    st.info("No transactions yet. Add some above.")
+# Export CSV
+st.sidebar.download_button(
+    label='Download CSV',
+    data=df.to_csv(index=False),
+    file_name='finance_data.csv',
+    mime='text/csv'
+)
