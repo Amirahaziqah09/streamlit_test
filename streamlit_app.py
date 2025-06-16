@@ -1,6 +1,8 @@
 import streamlit as st
 import pandas as pd
 import datetime
+import requests
+import matplotlib.pyplot as plt
 
 # Title of Streamlit App
 st.title("Personal Finance Tracker")
@@ -59,3 +61,36 @@ st.write(f"Total Income: RM{total_income:.2f}")
 st.write(f"Total Expenses: RM{total_expense:.2f}")
 st.write(f"Balance: RM{net_saving:.2f}")
 
+# Currency Conversion
+st.sidebar.header("Currency Conversion")
+currency = st.sidebar.text_input("Target Currency (e.g. USD)", "USD")
+
+if st.sidebar.button("Convert to " + currency):
+    try:
+        response = requests.get(f"https://api.exchangerate.host/convert?from=MYR&to={currency}")
+        rate = response.json()["result"]
+        st.success(f"1 MYR = {rate} {currency}")
+
+        st.write(f"Total Income in {currency}: {total_income * rate:.2f}")
+        st.write(f"Total Expenses in {currency}: {total_expense * rate:.2f}")
+
+    except Exception as e:
+        st.error("Currency conversion failed. Please try again later.")
+        st.error(e)
+
+
+# Charts
+st.subheader("Visualization")
+if not df.empty:
+    pie_data = df.groupby("Type")["Amount"].sum()
+    st.pie(pie_data,labels=pie_data.index)
+
+    st.bar_chart(df.groupby("Type")["Amount"].sum())    
+
+# Export CSV
+st.sidebar.download_button(
+    label='Download CSV',
+    data=df.to_csv(index=False),
+    file_name='finance_data.csv',
+    mime='text/csv'
+)
