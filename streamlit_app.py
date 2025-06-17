@@ -67,19 +67,14 @@ if st.button("Convert"):
 
             if response.status_code == 200:
                 data = response.json()
-                st.json(data)  # Papar data API untuk debug
-
-                if "result" in data:
-                    converted = data["result"]
-                    st.success(f"{amount:.2f} {from_currency} = {converted:.2f} {to_currency}")
-                else:
-                    st.error("API response missing 'result' field.")
-
+                converted = data["result"]
+                st.success(f"{amount:.2f} {from_currency} = {converted:.2f} {to_currency}")
             else:
                 st.error(f"API Error: {response.status_code}")
 
         except Exception as e:
             st.error(f"Conversion failed. Check internet or API.\n{e}")
+
 
 
 # --- Transactions Table ---
