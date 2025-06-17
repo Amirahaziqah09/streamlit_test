@@ -82,10 +82,4 @@ transaction_file = "transactions.csv"
 if os.path.exists(transaction_file):
     st.session_state.transactions = pd.read_csv(transaction_file).values.tolist()
 
-# --- CSV DOWNLOAD --- 
-st.download_button(
-    label='Download CSV',
-    data=df.to_csv(index=False),
-    file_name='transactions.csv',
-    mime='text/csv'
-)
+
