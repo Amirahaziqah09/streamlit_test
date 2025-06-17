@@ -91,8 +91,11 @@ if not df.empty:
     df_group = df.groupby("Type")["Amount"].sum()
 
     # Pie Chart
-    st.write("Distribution by Type")
-    st.pyplot(df_group.plot.pie(autopct='%1.1f%%').figure)
+   st.write("Distribution by Type")
+fig, ax = plt.subplots()
+df_group.plot.pie(autopct='%1.1f%%', ax=ax)
+ax.set_ylabel("")  # optional: removes the y-label
+st.pyplot(fig)
 
     # Bar Chart
     st.write("Summary by Type")
