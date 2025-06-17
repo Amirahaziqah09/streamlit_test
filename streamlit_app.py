@@ -73,3 +73,27 @@ if df.empty:
     st.info("No transactions added yet.")
 else:
     st.dataframe(df, use_container_width=True)
+
+# Load saved transactions if CSV exists
+import os
+
+transaction_file = "transactions.csv"
+
+if os.path.exists(transaction_file):
+    st.session_state.transactions = pd.read_csv(transaction_file).values.tolist()
+
+# --- Add Transaction Form ---
+with st.form("transaction_form"):
+    t_type = st.selectbox("Type", ["Income", "Expense"])
+    category = st.text_input("Category")
+    amount = st.number_input("Amount (RM)", min_value=0.01, format="%.2f")
+    submitted = st.form_submit_button("Add")
+
+    if submitted and category:
+        new_entry = [t_type, category, amount]
+        st.session_state.transactions.append(new_entry)
+        # Save to CSV
+        df_to_save = pd.DataFrame(st.session_state.transactions, columns=["Type", "Category", "Amount"])
+        df_to_save.to_csv(transaction_file, index=False)
+        st.success("Transaction added and saved!")
+
