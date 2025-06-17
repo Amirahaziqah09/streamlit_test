@@ -92,10 +92,10 @@ if not df.empty:
 
     # Pie Chart
    st.write("Distribution by Type")
-fig, ax = plt.subplots()
-df_group.plot.pie(autopct='%1.1f%%', ax=ax)
-ax.set_ylabel("")  # optional: removes the y-label
-st.pyplot(fig)
+    fig, ax = plt.subplots()
+    df_group.plot.pie(autopct='%1.1f%%', ax=ax)
+    ax.set_ylabel("")  # optional: removes the y-label
+    st.pyplot(fig)
 
     # Bar Chart
     st.write("Summary by Type")
