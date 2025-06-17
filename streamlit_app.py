@@ -53,7 +53,7 @@ if not df.empty:
 # --- Currency Converter ---
 st.subheader("🌍 Currency Converter")
 
-amount = st.number_input("Amount", value=100.00, key="currency_amount")
+amount = st.number_input("Amount", value=100.00)
 from_currency = st.selectbox("From", ["MYR", "USD", "EUR", "SGD"], index=0)
 to_currency = st.selectbox("To", ["USD", "MYR", "EUR", "SGD"], index=1)
 
@@ -62,7 +62,7 @@ if st.button("Convert"):
         st.info("Same currency selected. No conversion needed.")
     else:
         try:
-            url = url = f"https://api.exchangerate.host/convert?amount={amount}&from={from_currency}&to={to_currency}"
+            url = f"https://api.exchangerate.host/convert?amount={amount}&from={from_currency}&to={to_currency}"
             response = requests.get(url, timeout=10)
 
             if response.status_code == 200:
@@ -71,8 +71,9 @@ if st.button("Convert"):
                 st.success(f"{amount:.2f} {from_currency} = {converted:.2f} {to_currency}")
             else:
                 st.error(f"API Error: {response.status_code}")
+
         except Exception as e:
-            st.error("Conversion failed. Check internet or API.")
+            st.error(f"Conversion failed. Check internet or API.\n{e}")
 
 # --- Transactions Table ---
 st.subheader("📋 Transactions")
