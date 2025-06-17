@@ -62,7 +62,7 @@ if st.button("Convert"):
         st.info("Same currency selected. No conversion needed.")
     else:
         try:
-            url = f"https://api.exchangerate.host/convert?from={from_currency}&to={to_currency}&amount={amount}"
+            url = url = f"https://api.exchangerate.host/convert?amount={amount}&from={from_currency}&to={to_currency}"
             response = requests.get(url, timeout=10)
 
             if response.status_code == 200:
