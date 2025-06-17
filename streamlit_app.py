@@ -49,14 +49,21 @@ amount = st.number_input("Amount", value=100.00)
 from_currency = st.selectbox("From", ["MYR", "USD", "EUR", "SGD"], index=0)
 to_currency = st.selectbox("To", ["USD", "MYR", "EUR", "SGD"], index=1)
 if st.button("Convert"):
-    try:
-        url = f"https://api.exchangerate.host/convert?from={from_currency}&to={to_currency}&amount={amount}"
-        res = requests.get(url)
-        result = res.json()
-        converted = result["result"]
-        st.success(f"{amount:.2f} {from_currency} = {converted:.2f} {to_currency}")
-    except Exception as e:
-        st.error("Conversion failed. Check internet or API.")
+    if from_currency == to_currency:
+        st.info("Same currency selected. No conversion needed.")
+    else:
+        try:
+            url = f"https://api.exchangerate.host/convert?from={from_currency}&to={to_currency}&amount={amount}"
+            response = requests.get(url, timeout=10)
+
+            if response.status_code == 200:
+                data = response.json()
+                converted = data["result"]
+                st.success(f"{amount:.2f} {from_currency} = {converted:.2f} {to_currency}")
+            else:
+                st.error(f"API Error: {response.status_code}")
+        except Exception as e:
+            st.error("Conversion failed. Check internet or API.")
 
 # --- Transactions Table ---
 st.subheader("📋 Transactions")
