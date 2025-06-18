@@ -58,37 +58,27 @@ from_currency = st.selectbox("From", ["MYR", "USD", "EUR", "SGD"], index=0)
 to_currency = st.selectbox("To", ["USD", "MYR", "EUR", "SGD"], index=1)
 
 if st.button("Convert"):
-    try:
-        # Step 1: Convert from any currency ➜ EUR (free API)
-        if from_currency == "EUR":
-            eur_amount = amount
-        else:
-            response1 = requests.get(
-                f"https://api.exchangerate.host/convert?amount={amount}&from={from_currency}&to=EUR",
-                timeout=10
-            )
-            data1 = response1.json()
-            eur_amount = data1["result"]
+    if from_currency == to_currency:
+        st.info("Same currency selected. No conversion needed.")
+    else:
+        try:
+            api_key = "1d71b22b489cad06a3a78ca8"  # Replace this with your real key
+            url = f"https://v6.exchangerate-api.com/v6/{api_key}/pair/{from_currency}/{to_currency}/{amount}"
 
-        # Step 2: Convert from EUR ➜ target currency (Fixer.io)
-        access_key = "1d71b22b489cad06a3a78ca8" 
-        response2 = requests.get(
-            f"http://data.fixer.io/api/latest?access_key={access_key}&symbols={to_currency}",
-            timeout=10
-        )
-        data2 = response2.json()
+            response = requests.get(url, timeout=10)
+            data = response.json()
 
-        if data2.get("success"):
-            rate = data2["rates"][to_currency]
-            final_amount = eur_amount * rate
-            st.success(f"{amount:.2f} {from_currency} = {final_amount:.2f} {to_currency}")
-            st.caption(f"💱 Rate: 1 EUR = {rate:.4f} {to_currency}")
-        else:
-            st.error("Fixer API failed.")
-            st.write(data2)
+            if response.status_code == 200 and data["result"] == "success":
+                converted = data["conversion_result"]
+                rate = data["conversion_rate"]
+                st.success(f"{amount:.2f} {from_currency} = {converted:.2f} {to_currency}")
+                st.caption(f"💱 Rate: 1 {from_currency} = {rate:.4f} {to_currency}")
+            else:
+                st.error("Conversion failed.")
+                st.write("API Response:", data)
 
-    except Exception as e:
-        st.error(f"Conversion error: {e}")
+        except Exception as e:
+            st.error(f"Conversion failed. Error: {e}")
 
 # --- Transactions Table ---
 st.subheader("📋 Transactions")
