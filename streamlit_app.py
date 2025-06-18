@@ -67,8 +67,12 @@ if st.button("Convert"):
 
             if response.status_code == 200:
                 data = response.json()
+                if "result" in data and data["result"] is not None:
                 converted = data["result"]
                 st.success(f"{amount:.2f} {from_currency} = {converted:.2f} {to_currency}")
+else:
+    st.error("Conversion failed. Invalid response from API.")
+    st.write("API Response:", data)  # Optional: for debugging
             else:
                 st.error(f"API Error: {response.status_code}")
 
