@@ -62,24 +62,27 @@ if st.button("Convert"):
         st.info("Same currency selected. No conversion needed.")
     else:
         try:
-            url = f"https://api.exchangerate.host/convert?amount={amount}&from={from_currency}&to={to_currency}"
-            response = requests.get(url, timeout=10)
+            access_key = "c391f647be92d7579f9b6102c87053a4"  # <-- Replace with your actual key
 
-            if response.status_code == 200:
+            # Fixer.io only supports EUR as base currency on free plan
+            if from_currency != "EUR":
+                st.warning("Fixer.io Free Plan only supports conversions from EUR.")
+            else:
+                url = f"http://data.fixer.io/api/latest?access_key={access_key}&symbols={to_currency}"
+                response = requests.get(url, timeout=10)
                 data = response.json()
-                if "result" in data and data["result"] is not None:
-                    converted = data["result"]
-                    rate = data["info"]["rate"]
+
+                if response.status_code == 200 and data.get("success"):
+                    rate = data["rates"][to_currency]
+                    converted = amount * rate
                     st.success(f"{amount:.2f} {from_currency} = {converted:.2f} {to_currency}")
                     st.caption(f"💹 1 {from_currency} = {rate:.4f} {to_currency}")
                 else:
-                    st.error("Conversion failed. Invalid response from API.")
-                    st.write("API Response:", data)  # Debug
-            else:
-                st.error(f"API Error: {response.status_code}")
+                    st.error("Conversion failed.")
+                    st.write("API Response:", data)
 
         except Exception as e:
-            st.error(f"Conversion failed. Check internet or API.\n\n{e}")
+            st.error(f"Conversion failed. Error: {e}")
 
 # --- Transactions Table ---
 st.subheader("📋 Transactions")
