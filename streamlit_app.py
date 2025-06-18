@@ -71,7 +71,7 @@ if st.button("Convert"):
             eur_amount = data1["result"]
 
         # Step 2: Convert from EUR ➜ target currency (Fixer.io)
-        access_key = "c391f647be92d7579f9b6102c87053a4"  # Replace with your real Fixer.io key
+        access_key = "1d71b22b489cad06a3a78ca8" 
         response2 = requests.get(
             f"http://data.fixer.io/api/latest?access_key={access_key}&symbols={to_currency}",
             timeout=10
