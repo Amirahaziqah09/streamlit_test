@@ -47,7 +47,7 @@ with st.form("transaction_form", clear_on_submit=True):
 #Chart
 if not df.empty:
     chart = df.groupby("Type")["Amount"].sum().reset_index()
-    fig = px.pie(chart, values="Amount", names="Type", title="Income vs Expenses")
+    fig = px.pie(chart, values="Amount", names="Type", title="Pendapatan vs Perbelanjaan")
     st.plotly_chart(fig, use_container_width=True)
 
 #Currency Converter
