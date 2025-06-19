@@ -55,7 +55,7 @@ st.subheader("🌍 Currency Converter")
 
 amount = st.number_input("Amount", value=100.00)
 from_currency = st.selectbox("From", ["MYR", "USD", "EUR", "SGD"], index=00)
-to_currency = st.selectbox("To", ["USD", "MYR", "EUR", "SGD"], index=1)
+to_currency = st.selectbox("To", ["IDR", "MYR", "EUR", "SGD"], index=1)
 
 if st.button("Convert"):
     if from_currency == to_currency:
