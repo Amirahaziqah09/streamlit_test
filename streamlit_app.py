@@ -7,7 +7,7 @@ import os
 st.set_page_config(page_title="Personal Finance Tracker", layout="centered")
 st.title("💰 Personal Finance Tracker")
 
-# --- Load or Init Transactions ---
+#Load or Init Transactions
 transaction_file = "transactions.csv"
 
 if "transactions" not in st.session_state:
@@ -16,7 +16,7 @@ if "transactions" not in st.session_state:
     else:
         st.session_state.transactions = []
 
-# --- Summary ---
+#Summary
 st.subheader("📊 Summary")
 
 df = pd.DataFrame(st.session_state.transactions, columns=["Type", "Category", "Amount"])
@@ -30,7 +30,7 @@ col1.metric("Income", f"RM {income:.2f}")
 col2.metric("Expenses", f"RM {expenses:.2f}")
 col3.metric("Balance", f"RM {balance:.2f}")
 
-# --- Add Transaction ---
+#Add Transaction
 st.subheader("➕ Add Transaction")
 with st.form("transaction_form", clear_on_submit=True):
     t_type = st.selectbox("Type", ["Income", "Expense"])
@@ -44,13 +44,13 @@ with st.form("transaction_form", clear_on_submit=True):
         pd.DataFrame(st.session_state.transactions, columns=["Type", "Category", "Amount"]).to_csv(transaction_file, index=False)
         st.success("Transaction added!")
 
-# --- Chart ---
+#Chart
 if not df.empty:
     chart = df.groupby("Type")["Amount"].sum().reset_index()
     fig = px.pie(chart, values="Amount", names="Type", title="Income vs Expenses")
     st.plotly_chart(fig, use_container_width=True)
 
-# --- Currency Converter ---
+#Currency Converter
 st.subheader("🌍 Currency Converter")
 
 amount = st.number_input("Amount", value=100.00)
@@ -80,7 +80,7 @@ if st.button("Convert"):
         except Exception as e:
             st.error(f"Conversion failed. Error: {e}")
 
-# --- Transactions Table ---
+#Transactions Table
 st.subheader("📋 Transactions")
 if df.empty:
     st.info("No transactions added yet.")
